@@ -14,14 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
+      - name: Cache Go dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            /home/runner/go/pkg/mod
+            /home/runner/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.DEFAULT_GO_VERSION }}
           check-latest: true
-          cache-dependency-path: '**/*.sum'
+          cache-dependency-path: ${{ env.GOMODCACHE }}
+      - name: Checkout Repo
+        uses: actions/checkout@v4
       - name: Run linter
         run: make lint
       - name: Run test

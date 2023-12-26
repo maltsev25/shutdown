@@ -19,6 +19,10 @@ jobs:
         with:
           go-version: ${{ env.DEFAULT_GO_VERSION }}
           check-latest: true
+      - name: Debug
+        run: |
+          ls -R /home/runner/go/pkg/mod
+          ls -R /home/runner/.cache/go-build
       - name: Checkout Repo
         uses: actions/checkout@v4
       - name: Run linter

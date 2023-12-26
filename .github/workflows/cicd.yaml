@@ -20,7 +20,6 @@ jobs:
           path: |
             /home/runner/go/pkg/mod
             /home/runner/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
       - name: Install Go
         uses: actions/setup-go@v4
         with:

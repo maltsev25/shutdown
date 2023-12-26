@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Cache Go dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             /home/runner/go/pkg/mod

@@ -14,14 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.DEFAULT_GO_VERSION }}
           check-latest: true
           cache-dependency-path: '**/*.sum'
-      - name: Checkout Repo
-        uses: actions/checkout@v4
       - name: Run linter
         run: make lint
       - name: Run test

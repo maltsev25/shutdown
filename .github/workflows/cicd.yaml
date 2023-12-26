@@ -28,6 +28,7 @@ jobs:
           check-latest: true
       - name: Debug
         run: |
+          find . -name 'go.sum'
           ls -R /home/runner/go/pkg/mod
           ls -R /home/runner/.cache/go-build
       - name: Checkout Repo

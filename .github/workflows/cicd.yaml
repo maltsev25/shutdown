@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.DEFAULT_GO_VERSION }}
           cache: false
-      - name: Checkout Repo
-        uses: actions/checkout@v4
       - name: Cache Linter
         uses: actions/cache@v3
         with:

@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.DEFAULT_GO_VERSION }}
-          cache-dependency-path: /home/runner/go/pkg/mod
+          check-latest: true
       - name: Checkout Repo
         uses: actions/checkout@v4
       - name: Run linter

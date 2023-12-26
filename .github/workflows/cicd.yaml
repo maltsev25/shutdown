@@ -21,11 +21,11 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.DEFAULT_GO_VERSION }}
-      - name: Cache Linter
-        uses: actions/cache@v3
-        with:
-          path: './build/golangci-lint'
-          key: ${{ runner.os }}-linter-${{ env.LINTER_VERSION }}
+#      - name: Cache Linter
+#        uses: actions/cache@v3
+#        with:
+#          path: './build/golangci-lint'
+#          key: ${{ runner.os }}-linter-${{ env.LINTER_VERSION }}
       - name: Run linter
         run: make lint
       - name: Run test

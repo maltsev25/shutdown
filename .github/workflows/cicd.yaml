@@ -20,7 +20,7 @@ jobs:
           path: |
             /home/runner/go/pkg/mod
             /home/runner/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.mod') }}
       - name: Install Go
         uses: actions/setup-go@v4
         with:
@@ -28,7 +28,7 @@ jobs:
           check-latest: true
       - name: Debug
         run: |
-          find . -name 'go.sum'
+          find . -name 'go.mod'
           ls -R /home/runner/go/pkg/mod
           ls -R /home/runner/.cache/go-build
       - name: Checkout Repo

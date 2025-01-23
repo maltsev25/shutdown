@@ -35,6 +35,13 @@ func TestShutdown(t *testing.T) {
 				t.Log("node5 shutdown success")
 			})
 
+			t.Run("get nodes names", func(t *testing.T) {
+				nodes := shutdown.GetNodesNames()
+				if len(nodes) != 5 {
+					t.Errorf("got %d, want 5", len(nodes))
+				}
+			})
+
 			shutdown.Shutdown()
 		})
 
@@ -73,7 +80,6 @@ func TestShutdown(t *testing.T) {
 
 			shutdown.Shutdown()
 		})
-
 	})
 
 	t.Run("error node already exists", func(t *testing.T) {
@@ -124,6 +130,30 @@ func TestShutdown(t *testing.T) {
 		}, "node1")
 
 		// syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+		shutdown.Shutdown()
+
+		err := shutdown.Wait()
+		if err != nil {
+			t.Errorf("got %v, want nil", err)
+		}
+	})
+
+	t.Run("shutdown twice", func(t *testing.T) {
+		t.Parallel()
+
+		shutdown := New()
+
+		shutdown.MustAdd("node1", func(ctx context.Context) {
+			time.Sleep(time.Millisecond * 500)
+			t.Log("node1 shutdown success")
+		})
+
+		shutdown.MustAdd("node2", func(ctx context.Context) {
+			time.Sleep(time.Millisecond * 500)
+			t.Log("node2 shutdown success")
+		}, "node1")
+
+		shutdown.Shutdown()
 		shutdown.Shutdown()
 
 		err := shutdown.Wait()

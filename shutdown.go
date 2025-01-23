@@ -29,6 +29,7 @@ type (
 	Shutdown struct {
 		mx sync.Mutex
 
+		once    sync.Once
 		started chan struct{}
 		done    chan struct{}
 
@@ -42,6 +43,7 @@ func New() *Shutdown {
 
 	shutdown := &Shutdown{
 		mx:            sync.Mutex{},
+		once:          sync.Once{},
 		started:       make(chan struct{}),
 		done:          make(chan struct{}),
 		dependencyMap: make(map[string]*Node),
@@ -56,6 +58,19 @@ func New() *Shutdown {
 	}()
 
 	return shutdown
+}
+
+// GetNodesNames returns all nodes names
+func (s *Shutdown) GetNodesNames() []string {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+
+	result := make([]string, 0, len(s.dependencyMap))
+	for k := range s.dependencyMap {
+		result = append(result, k)
+	}
+
+	return result
 }
 
 // MustAdd adds a callback to a Shutdown instance
@@ -101,14 +116,16 @@ func (s *Shutdown) Add(name string, callbackFunc CallbackFunc, parents ...string
 
 // Shutdown processes all shutdown callbacks concurrently in a limited time frame (Timeout)
 func (s *Shutdown) Shutdown() {
-	defer close(s.done)
+	s.once.Do(func() {
+		defer close(s.done)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 
-	close(s.started)
+		close(s.started)
 
-	s.shutdown(ctx)
+		s.shutdown(ctx)
+	})
 }
 
 // Wait for shutdown initiated by OS signal, can be forced, cancelled by timeout, finished correctly.
@@ -133,7 +150,7 @@ func (s *Shutdown) shutdown(ctx context.Context) {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	waitGroup := sync.WaitGroup{}
+	waitGroup := &sync.WaitGroup{}
 
 	for _, node := range s.dependencyMap {
 		if len(node.parents) == 0 {

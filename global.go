@@ -20,6 +20,11 @@ func Timeout() time.Duration {
 	return timeout
 }
 
+// GetNodesNames returns all nodes names
+func GetNodesNames() []string {
+	return globalShutdown.GetNodesNames()
+}
+
 // MustAdd shutdown callback to a global GracefulShutdown
 func MustAdd(name string, callbackFunc CallbackFunc, parents ...string) {
 	globalShutdown.MustAdd(name, callbackFunc, parents...)

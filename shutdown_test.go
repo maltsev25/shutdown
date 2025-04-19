@@ -120,17 +120,19 @@ func TestShutdown(t *testing.T) {
 		shutdown := New()
 
 		shutdown.MustAdd("node1", func(ctx context.Context) {
-			time.Sleep(time.Millisecond * 500)
+			time.Sleep(time.Millisecond * 100)
 			t.Log("node1 shutdown success")
 		})
 
 		shutdown.MustAdd("node2", func(ctx context.Context) {
-			time.Sleep(time.Millisecond * 500)
+			time.Sleep(time.Millisecond * 100)
 			t.Log("node2 shutdown success")
 		}, "node1")
 
-		// syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-		shutdown.Shutdown()
+		go func() {
+			// syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+			shutdown.Shutdown()
+		}()
 
 		err := shutdown.Wait()
 		if err != nil {
@@ -144,21 +146,48 @@ func TestShutdown(t *testing.T) {
 		shutdown := New()
 
 		shutdown.MustAdd("node1", func(ctx context.Context) {
-			time.Sleep(time.Millisecond * 500)
+			time.Sleep(time.Millisecond * 100)
 			t.Log("node1 shutdown success")
 		})
 
 		shutdown.MustAdd("node2", func(ctx context.Context) {
-			time.Sleep(time.Millisecond * 500)
+			time.Sleep(time.Millisecond * 100)
 			t.Log("node2 shutdown success")
 		}, "node1")
 
-		shutdown.Shutdown()
-		shutdown.Shutdown()
+		go func() {
+			shutdown.Shutdown()
+			shutdown.Shutdown()
+		}()
 
 		err := shutdown.Wait()
 		if err != nil {
 			t.Errorf("got %v, want nil", err)
+		}
+	})
+
+	t.Run("shutdown with timeout", func(t *testing.T) {
+		t.Parallel()
+
+		shutdown := New(WithTimeout(time.Millisecond * 100))
+
+		shutdown.MustAdd("node1", func(ctx context.Context) {
+			time.Sleep(time.Millisecond * 100)
+			t.Log("node1 shutdown success")
+		})
+
+		shutdown.MustAdd("node2", func(ctx context.Context) {
+			time.Sleep(time.Millisecond * 100)
+			t.Log("node2 shutdown success")
+		}, "node1")
+
+		go func() {
+			shutdown.Shutdown()
+		}()
+
+		err := shutdown.Wait()
+		if !errors.Is(err, ErrorTimeout) {
+			t.Errorf("expected ErrorTimeout, got %v", err)
 		}
 	})
 }

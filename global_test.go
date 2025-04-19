@@ -11,19 +11,7 @@ func TestGlobal(t *testing.T) {
 	t.Run("init", func(t *testing.T) {
 		t.Parallel()
 
-		InitGlobal()
-
-		t.Run("timeout", func(t *testing.T) {
-			t.Run("register", func(t *testing.T) {
-				RegisterTimeout(time.Second)
-
-				t.Run("get", func(t *testing.T) {
-					if Timeout() != time.Second {
-						t.Error("timeout not set")
-					}
-				})
-			})
-		})
+		InitGlobal(WithTimeout(time.Second))
 
 		t.Run("add", func(t *testing.T) {
 			t.Run("success", func(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 var (
 	signals = []os.Signal{syscall.SIGINT, syscall.SIGTERM}
 
-	timeout = time.Second * 5
+	defaultTimeout = time.Second * 5
 
 	ErrorNodeNotFound = errors.New("parent node not found")
 	ErrorNodeExists   = errors.New("node already exists")
@@ -25,34 +25,50 @@ type (
 	// CallbackFunc to Add
 	CallbackFunc func(ctx context.Context)
 
+	Option func(*Shutdown)
+
 	// Shutdown keeps track of all of your application Close/Shutdown dependencies
 	Shutdown struct {
-		mx sync.Mutex
+		mu sync.Mutex
 
 		once    sync.Once
 		started chan struct{}
 		done    chan struct{}
 
+		timeout time.Duration
+
 		dependencyMap map[string]*Node
 	}
 )
 
-// New GracefulShutdown constructor
-func New() *Shutdown {
-	osCTX, cancel := signal.NotifyContext(context.Background(), signals...)
+// WithTimeout set shutdown timeout
+func WithTimeout(duration time.Duration) Option {
+	return func(s *Shutdown) {
+		s.timeout = duration
+	}
+}
+
+// New Shutdown constructor, default timeout 5s
+func New(opts ...Option) *Shutdown {
+	signalsCtx, cancel := signal.NotifyContext(context.Background(), signals...)
 
 	shutdown := &Shutdown{
-		mx:            sync.Mutex{},
+		mu:            sync.Mutex{},
 		once:          sync.Once{},
 		started:       make(chan struct{}),
 		done:          make(chan struct{}),
+		timeout:       defaultTimeout,
 		dependencyMap: make(map[string]*Node),
+	}
+
+	for _, opt := range opts {
+		opt(shutdown)
 	}
 
 	go func() {
 		defer cancel()
 
-		<-osCTX.Done()
+		<-signalsCtx.Done()
 
 		shutdown.Shutdown()
 	}()
@@ -62,8 +78,8 @@ func New() *Shutdown {
 
 // GetNodesNames returns all nodes names
 func (s *Shutdown) GetNodesNames() []string {
-	s.mx.Lock()
-	defer s.mx.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	result := make([]string, 0, len(s.dependencyMap))
 	for k := range s.dependencyMap {
@@ -73,33 +89,33 @@ func (s *Shutdown) GetNodesNames() []string {
 	return result
 }
 
-// MustAdd adds a callback to a Shutdown instance
-func (s *Shutdown) MustAdd(name string, callbackFunc CallbackFunc, parents ...string) {
-	if err := s.Add(name, callbackFunc, parents...); err != nil {
+// MustAdd adds a callback to a Shutdown, will panic if error
+func (s *Shutdown) MustAdd(name string, callbackFunc CallbackFunc, parentNames ...string) {
+	if err := s.Add(name, callbackFunc, parentNames...); err != nil {
 		panic(err)
 	}
 }
 
-// Add adds a callback to a GracefulShutdown instance, can return ErrorNodeNotFound, ErrorNodeExists
-func (s *Shutdown) Add(name string, callbackFunc CallbackFunc, parents ...string) error {
-	s.mx.Lock()
-	defer s.mx.Unlock()
+// Add adds a callback to a Shutdown, can return ErrorNodeNotFound, ErrorNodeExists
+func (s *Shutdown) Add(name string, callbackFunc CallbackFunc, parentNames ...string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if _, ok := s.dependencyMap[name]; ok {
+	if _, exists := s.dependencyMap[name]; exists {
 		return ErrorNodeExists
 	}
 
 	node := &Node{
 		name:         name,
-		parents:      []*Node{},
-		children:     []*Node{},
+		parents:      make([]*Node, 0, len(parentNames)),
+		children:     make([]*Node, 0),
 		wg:           sync.WaitGroup{},
 		callbackFunc: callbackFunc,
 	}
 
-	for _, parentName := range parents {
-		parent, ok := s.dependencyMap[parentName]
-		if !ok {
+	for _, parentName := range parentNames {
+		parent, exists := s.dependencyMap[parentName]
+		if !exists {
 			return ErrorNodeNotFound
 		}
 
@@ -119,7 +135,7 @@ func (s *Shutdown) Shutdown() {
 	s.once.Do(func() {
 		defer close(s.done)
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 		defer cancel()
 
 		close(s.started)
@@ -138,7 +154,7 @@ func (s *Shutdown) Wait() error {
 	select {
 	case <-s.done:
 		return nil
-	case <-time.After(timeout):
+	case <-time.After(s.timeout):
 		return ErrorTimeout
 	case <-stop:
 		return ErrorForceStop
@@ -147,24 +163,24 @@ func (s *Shutdown) Wait() error {
 
 // shutdown running shutdown callbacks from parents to children concurrently
 func (s *Shutdown) shutdown(ctx context.Context) {
-	s.mx.Lock()
-	defer s.mx.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	waitGroup := &sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 
 	for _, node := range s.dependencyMap {
 		if len(node.parents) == 0 {
-			waitGroup.Add(1)
+			wg.Add(1)
 
 			go func(node *Node) {
-				defer waitGroup.Done()
+				defer wg.Done()
 
 				node.shutdown(ctx)
 			}(node)
 		}
 	}
 
-	waitGroup.Wait()
+	wg.Wait()
 
-	s.dependencyMap = make(map[string]*Node)
+	s.dependencyMap = nil
 }
